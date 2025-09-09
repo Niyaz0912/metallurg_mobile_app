@@ -55,18 +55,15 @@ function MainNavigator() {
           backgroundColor: '#ffffff',
           borderTopWidth: 2,
           borderTopColor: '#3b82f6',
-          height: Platform.OS === 'web' ? 70 : 60,
-          paddingBottom: Platform.OS === 'web' ? 12 : 8,
-          paddingTop: 12,
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          elevation: 8,
+          height: Platform.OS === 'web' ? 80 : 60,
+          paddingBottom: Platform.OS === 'web' ? 16 : 8,
+          paddingTop: 16,
+          // Простые стили без проблемных position
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
           shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -74,7 +71,7 @@ function MainNavigator() {
           marginTop: 4,
         },
         tabBarIconStyle: {
-          marginBottom: 4,
+          marginBottom: 2,
         },
         headerShown: false,
       }}
@@ -135,6 +132,7 @@ function MainNavigator() {
     </Tab.Navigator>
   );
 }
+
 
 function AppNavigator() {
   const { token, isLoading } = useAuth();
