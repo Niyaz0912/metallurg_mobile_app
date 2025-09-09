@@ -46,6 +46,14 @@ async function deleteToken() {
 }
 
 
+interface DecodedToken {
+  userId: number;
+  role: UserRole;
+  username: string;
+  iat: number;
+  exp: number;
+}
+
 // --- Auth Context ---
 
 interface AuthContextData {
@@ -73,13 +81,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (storedToken) {
         try {
-          const decodedToken: { user: User } = jwtDecode(storedToken);
-          setUser(decodedToken.user);
+          const decodedToken = jwtDecode<DecodedToken>(storedToken);
+          // Construct a user object from the token
+          const userFromToken: User = {
+            id: decodedToken.userId,
+            username: decodedToken.username,
+            role: decodedToken.role,
+            firstName: '', // These are not in the token, but the type requires them
+            lastName: ''
+          };
+          setUser(userFromToken);
           setToken(storedToken);
           api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
         } catch (e) {
           console.error("Failed to decode token", e);
-          // Token is invalid, so we clear it
           await deleteToken();
         }
       }
@@ -93,8 +108,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const response = await loginService(credentials);
     const { token: responseToken } = response;
 
-    const decodedToken: User = jwtDecode(responseToken);
-    setUser(decodedToken);
+    const decodedToken = jwtDecode<DecodedToken>(responseToken);
+    const userFromToken: User = {
+      id: decodedToken.userId,
+      username: decodedToken.username,
+      role: decodedToken.role,
+      firstName: '',
+      lastName: ''
+    };
+    setUser(userFromToken);
     setToken(responseToken);
 
     api.defaults.headers.common['Authorization'] = `Bearer ${responseToken}`;
