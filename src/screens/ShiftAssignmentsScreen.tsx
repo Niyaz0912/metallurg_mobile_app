@@ -4,15 +4,14 @@ import {
     Text,
     ScrollView,
     StyleSheet,
-    TouchableOpacity,
     RefreshControl,
-    Alert,
     ActivityIndicator
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { ShiftAssignment } from '../types/assignments';
 import { getAssignments } from '../services/assignmentService';
-import { StatusChip } from '../components/ui'
+import { Card, CardData } from '../components/ui';  // Исправленный импорт
+import { colors, typography, spacing } from '../theme';
 
 export default function ShiftAssignmentsScreen() {
     const [assignments, setAssignments] = useState<ShiftAssignment[]>([]);
@@ -27,13 +26,12 @@ export default function ShiftAssignmentsScreen() {
             if (Array.isArray(fetchedAssignments)) {
                 setAssignments(fetchedAssignments);
             } else {
-                console.warn('getAssignments did not return an array:', fetchedAssignments);
-                setAssignments([]); // Set to empty array to prevent crash
+                setAssignments([]);
             }
         } catch (error) {
-            console.error('Error fetching assignments:', error);
+            console.error('Error loading assignments:', error);
             setError('Ошибка загрузки заданий');
-            setAssignments([]); // Also set to empty array on error
+            setAssignments([]);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -50,23 +48,72 @@ export default function ShiftAssignmentsScreen() {
     };
 
     const handleViewPDF = (assignment: ShiftAssignment) => {
-        Alert.alert(
-            'Техкарта',
-            `Открытие PDF для: ${assignment.productName}`,
-            [{ text: 'OK' }]
-        );
+        console.log('Opening PDF for:', assignment.productName);
+        // TODO: Реализовать открытие PDF
     };
 
     const handleReport = (assignment: ShiftAssignment) => {
-        Alert.alert(
-            'Отчет',
-            `Переход к отчету по заданию ${assignment.taskNumber}`,
-            [{ text: 'OK' }]
-        );
+        console.log('Opening report for:', assignment.taskNumber);
+        // TODO: Реализовать переход к отчету
+    };
+
+    // Преобразуем assignment в CardData
+    const convertToCardData = (assignment: ShiftAssignment): CardData => {
+        const progressPercent = Math.round((assignment.completedQuantity / assignment.quantity) * 100);
+        const isCompleted = assignment.status === 'completed';
+
+        // Определяем статус для StatusChip
+        let status: 'urgent' | 'normal' | 'low' | 'completed' | 'pending' | 'inProgress' = 'normal';
+        
+        if (assignment.status === 'completed') {
+            status = 'completed';
+        } else if (assignment.priority === 'urgent') {
+            status = 'urgent';
+        } else if (assignment.status === 'in_progress') {
+            status = 'inProgress';
+        } else if (assignment.status === 'pending') {
+            status = 'pending';
+        }
+
+        return {
+            id: assignment.taskNumber || assignment.id,
+            title: assignment.productName,
+            status: status,
+            metadata: [
+                { label: 'Заказчик', value: assignment.customerName },
+                { label: 'Заказ', value: assignment.orderName || 'Не указан' },
+            ],
+            progress: {
+                current: assignment.completedQuantity,
+                total: assignment.quantity,
+                percentage: progressPercent,
+            },
+            deadline: new Date(assignment.deadline).toLocaleTimeString('ru-RU', {
+                hour: '2-digit',
+                minute: '2-digit'
+            }),
+            actions: isCompleted ? [] : [
+                {
+                    title: '📄 Техкарта',
+                    type: 'secondary' as const,
+                    onPress: () => handleViewPDF(assignment),
+                },
+                {
+                    title: '📝 Отчитаться',
+                    type: 'primary' as const,
+                    onPress: () => handleReport(assignment),
+                },
+            ],
+        };
     };
 
     if (loading) {
-        return <ActivityIndicator size="large" style={styles.centered} />;
+        return (
+            <View style={styles.centered}>
+                <ActivityIndicator size="large" color={colors.primary[500]} />
+                <Text style={styles.loadingText}>Загрузка заданий...</Text>
+            </View>
+        );
     }
 
     const currentShift = getCurrentShift();
@@ -76,180 +123,112 @@ export default function ShiftAssignmentsScreen() {
     return (
         <ScrollView
             style={styles.container}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            refreshControl={
+                <RefreshControl 
+                    refreshing={refreshing} 
+                    onRefresh={onRefresh}
+                    colors={[colors.primary[500]]}
+                />
+            }
+            showsVerticalScrollIndicator={false}
         >
-            {error && <Text style={styles.errorText}>{error}</Text>}
+            {error && (
+                <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{error}</Text>
+                </View>
+            )}
+            
+            {/* Заголовок смены */}
             <View style={styles.shiftHeader}>
                 <Text style={styles.shiftTitle}>📋 Сменные задания</Text>
-                <Text style={styles.shiftTime}>Смена: {currentShift}</Text>
+                <Text style={styles.shiftTime}>{currentShift}</Text>
+                
                 <View style={styles.statsContainer}>
                     <View style={styles.statItem}>
                         <Text style={styles.statNumber}>{pendingTasks}</Text>
                         <Text style={styles.statLabel}>К выполнению</Text>
                     </View>
                     <View style={styles.statItem}>
-                        <Text style={[styles.statNumber, { color: '#10b981' }]}>{completedTasks}</Text>
+                        <Text style={[styles.statNumber, { color: colors.success[500] }]}>
+                            {completedTasks}
+                        </Text>
                         <Text style={styles.statLabel}>Выполнено</Text>
                     </View>
                 </View>
             </View>
             
-            {assignments.map((assignment) => (
-                <AssignmentCard
-                    key={assignment.id}
-                    assignment={assignment}
-                    onViewPDF={() => handleViewPDF(assignment)}
-                    onReport={() => handleReport(assignment)}
-                />
-            ))}
-        </ScrollView>
-    );
-}
-
-function AssignmentCard({
-    assignment,
-    onViewPDF,
-    onReport
-}: {
-    assignment: ShiftAssignment;
-    onViewPDF: () => void;
-    onReport: () => void;
-}) {
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'urgent': return '#ef4444';
-            case 'normal': return '#f59e0b';
-            case 'low': return '#10b981';
-            default: return '#64748b';
-        }
-    };
-
-    const getPriorityLabel = (priority: string) => {
-        switch (priority) {
-            case 'urgent': return '🔴 Срочное';
-            case 'normal': return '🟡 В процессе';
-            case 'low': return '🟢 Низкий приоритет';
-            default: return '⚪ Обычное';
-        }
-    };
-
-    const getStatusLabel = (status: string) => {
-        switch (status) {
-            case 'pending': return 'Ожидает';
-            case 'in_progress': return 'В работе';
-            case 'completed': return 'Выполнено';
-            default: return status;
-        }
-    };
-
-    const progressPercent = Math.round((assignment.completedQuantity / assignment.quantity) * 100);
-    const isCompleted = assignment.status === 'completed';
-
-    return (
-        <View style={[styles.card, isCompleted && styles.completedCard]}>
-            <View style={styles.cardHeader}>
-                <Text style={[styles.priority, { color: getPriorityColor(assignment.priority) }]}>
-                    {getPriorityLabel(assignment.priority)}
-                </Text>
-                <Text style={styles.status}>{getStatusLabel(assignment.status)}</Text>
-            </View>
-
-            <View style={styles.cardBody}>
-                <Text style={styles.taskNumber}>Задание #{assignment.taskNumber}</Text>
-                <Text style={styles.productName}>{assignment.productName}</Text>
-                <Text style={styles.customer}>Заказчик: {assignment.customerName}</Text>
-                <Text style={styles.order}>Заказ: {assignment.orderName}</Text>
-            </View>
-
-            <View style={styles.progressSection}>
-                <Text style={styles.progressText}>
-                    План: {assignment.quantity} шт | Сдано: {assignment.completedQuantity} шт ({progressPercent}%)
-                </Text>
-                <View style={styles.progressBar}>
-                    <View
-                        style={[
-                            styles.progressFill,
-                            {
-                                width: `${progressPercent}%`,
-                                backgroundColor: isCompleted ? '#10b981' : '#3b82f6'
-                            }
-                        ]}
-                    />
+            {/* Список заданий */}
+            {assignments.length === 0 && !loading ? (
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>Нет заданий на смену</Text>
                 </View>
-            </View>
+            ) : (
+                assignments.map((assignment) => (
+                    <Card
+                        key={assignment.id}
+                        data={convertToCardData(assignment)}
+                        layout="assignment"
+                    />
+                ))
+            )}
 
-            <View style={styles.timeSection}>
-                <Text style={styles.deadline}>
-                    ⏰ До: {new Date(assignment.deadline).toLocaleTimeString('ru-RU', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })}
-                </Text>
-            </View>
-
-            <View style={styles.actionsSection}>
-                <TouchableOpacity style={styles.pdfButton} onPress={onViewPDF}>
-                    <Text style={styles.pdfButtonText}>📄 PDF</Text>
-                </TouchableOpacity>
-
-                {!isCompleted && (
-                    <TouchableOpacity style={styles.reportButton} onPress={onReport}>
-                        <Text style={styles.reportButtonText}>📝 Отчитаться</Text>
-                    </TouchableOpacity>
-                )}
-
-                {isCompleted && (
-                    <View style={styles.completedBadge}>
-                        <Text style={styles.completedText}>✅ Выполнено</Text>
-                    </View>
-                )}
-            </View>
-        </View>
+            {/* Отступ для навигации */}
+            <View style={styles.bottomSpacing} />
+        </ScrollView>
     );
 }
 
 function getCurrentShift(): string {
     const now = new Date();
     const hours = now.getHours();
-
-    if (hours >= 7 && hours < 19) {
-        return "7:00 - 19:00 (День)";
-    } else {
-        return "19:00 - 7:00 (Ночь)";
-    }
+    return hours >= 7 && hours < 19 ? "Дневная смена: 7:00 - 19:00" : "Ночная смена: 19:00 - 7:00";
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: colors.background,
     },
     centered: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        backgroundColor: colors.background,
+    },
+    loadingText: {
+        ...typography.body.base,
+        color: colors.gray[600],
+        marginTop: spacing[2],
+    },
+    errorContainer: {
+        backgroundColor: colors.danger[50],
+        borderColor: colors.danger[200],
+        borderWidth: 1,
+        borderRadius: 8,
+        margin: spacing[4],
+        padding: spacing[3],
     },
     errorText: {
+        ...typography.body.base,
+        color: colors.danger[700],
         textAlign: 'center',
-        color: 'red',
-        margin: 10,
     },
     shiftHeader: {
-        backgroundColor: '#ffffff',
-        padding: 20,
+        backgroundColor: colors.surface,
+        padding: spacing[5],
         borderBottomWidth: 1,
-        borderBottomColor: '#e2e8f0',
+        borderBottomColor: colors.border,
+        marginBottom: spacing[4],
     },
     shiftTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 4,
+        ...typography.heading.h2,
+        color: colors.gray[900],
+        marginBottom: spacing[1],
     },
     shiftTime: {
-        fontSize: 16,
-        color: '#64748b',
-        marginBottom: 16,
+        ...typography.body.base,
+        color: colors.gray[600],
+        marginBottom: spacing[4],
     },
     statsContainer: {
         flexDirection: 'row',
@@ -259,142 +238,27 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     statNumber: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#3b82f6',
+        ...typography.heading.h1,
+        color: colors.primary[500],
+        fontWeight: typography.fontWeight.bold,
     },
     statLabel: {
-        fontSize: 12,
-        color: '#64748b',
-        marginTop: 4,
+        ...typography.body.xs,
+        color: colors.gray[600],
+        marginTop: spacing[1],
+        textAlign: 'center',
     },
-    card: {
-        backgroundColor: '#ffffff',
-        margin: 16,
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    completedCard: {
-        opacity: 0.8,
-        borderLeftWidth: 4,
-        borderLeftColor: '#10b981',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    priority: {
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    status: {
-        fontSize: 12,
-        color: '#64748b',
-        backgroundColor: '#f1f5f9',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-    },
-    cardBody: {
-        marginBottom: 16,
-    },
-    taskNumber: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 4,
-    },
-    productName: {
-        fontSize: 16,
-        color: '#374151',
-        marginBottom: 8,
-    },
-    customer: {
-        fontSize: 14,
-        color: '#64748b',
-        marginBottom: 2,
-    },
-    order: {
-        fontSize: 14,
-        color: '#64748b',
-    },
-    progressSection: {
-        marginBottom: 12,
-    },
-    progressText: {
-        fontSize: 14,
-        color: '#374151',
-        marginBottom: 8,
-    },
-    progressBar: {
-        height: 8,
-        backgroundColor: '#e5e7eb',
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        borderRadius: 4,
-    },
-    timeSection: {
-        marginBottom: 16,
-    },
-    deadline: {
-        fontSize: 14,
-        color: '#ef4444',
-        fontWeight: '500',
-    },
-    actionsSection: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    emptyContainer: {
+        padding: spacing[8],
         alignItems: 'center',
     },
-    pdfButton: {
-        backgroundColor: '#f1f5f9',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#d1d5db',
+    emptyText: {
+        ...typography.body.base,
+        color: colors.gray[500],
+        textAlign: 'center',
     },
-    pdfButtonText: {
-        color: '#374151',
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    reportButton: {
-        backgroundColor: '#3b82f6',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 8,
-        flex: 1,
-        marginLeft: 12,
-        alignItems: 'center',
-    },
-    reportButtonText: {
-        color: '#ffffff',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    completedBadge: {
-        backgroundColor: '#dcfce7',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        flex: 1,
-        marginLeft: 12,
-        alignItems: 'center',
-    },
-    completedText: {
-        color: '#16a34a',
-        fontSize: 14,
-        fontWeight: '500',
+    bottomSpacing: {
+        height: 100,
     },
 });
+
