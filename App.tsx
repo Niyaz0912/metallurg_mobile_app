@@ -3,13 +3,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, Button, Text, Platform } from 'react-native';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LoginScreen from './src/screens/LoginScreen';
-import UsersScreen from './src/screens/UsersScreen';
 import ProductionPlansScreen from './src/screens/ProductionPlansScreen';
 import TechCardsScreen from './src/screens/TechCardsScreen';
 import ShiftAssignmentsScreen from './src/screens/ShiftAssignmentsScreen';
 import TaskReportScreen from './src/screens/TaskReportScreen';
+import DepartmentScreen from './src/screens/DepartmentScreen'; // Новый экран профиля + департамент
 
 import { UserRole } from './src/types/auth';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -25,7 +26,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   ShiftAssignments: undefined;
-  Users: undefined;
+  Department: undefined;
   ProductionPlans: undefined;
   TechCards: undefined;
 };
@@ -33,7 +34,6 @@ export type MainTabParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// Helper component for the logout button
 function LogoutButton() {
   const { logout } = useAuth();
   return <Button onPress={logout} title="Выход" color="#dc3545" />;
@@ -41,13 +41,17 @@ function LogoutButton() {
 
 function MainNavigator() {
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   if (!user) {
     return null;
   }
 
+  const isAdmin = [UserRole.ADMIN, UserRole.DIRECTOR, UserRole.MASTER].includes(user.role);
+
   return (
     <Tab.Navigator
+      initialRouteName="Department"
       screenOptions={{
         tabBarActiveTintColor: '#3b82f6',
         tabBarInactiveTintColor: '#64748b',
@@ -55,10 +59,9 @@ function MainNavigator() {
           backgroundColor: '#ffffff',
           borderTopWidth: 2,
           borderTopColor: '#3b82f6',
-          height: Platform.OS === 'web' ? 80 : 60,
-          paddingBottom: Platform.OS === 'web' ? 16 : 8,
+          height: (Platform.OS === 'web' ? 80 : 60) + insets.bottom,
+          paddingBottom: insets.bottom + (Platform.OS === 'web' ? 16 : 8),
           paddingTop: 16,
-          // Простые стили без проблемных position
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
@@ -76,9 +79,21 @@ function MainNavigator() {
         headerShown: false,
       }}
     >
-      <Tab.Screen 
-        name="ShiftAssignments" 
-        component={ShiftAssignmentsScreen} 
+      <Tab.Screen
+        name="Department"
+        component={DepartmentScreen}
+        options={{
+          tabBarLabel: 'Департамент',
+          tabBarIcon: ({ focused, color }) => (
+            <Text style={{ fontSize: 24, color }}>
+              {focused ? '🏢' : '🏭'}
+            </Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ShiftAssignments"
+        component={ShiftAssignmentsScreen}
         options={{
           tabBarLabel: 'Задания',
           tabBarIcon: ({ focused, color }) => (
@@ -88,25 +103,9 @@ function MainNavigator() {
           ),
         }}
       />
-
-      {[UserRole.ADMIN, UserRole.DIRECTOR, UserRole.MASTER].includes(user.role) && (
-        <Tab.Screen 
-          name="Users" 
-          component={UsersScreen} 
-          options={{
-            tabBarLabel: 'Пользователи',
-            tabBarIcon: ({ focused, color }) => (
-              <Text style={{ fontSize: 24, color }}>
-                {focused ? '👤' : '👥'}
-              </Text>
-            ),
-          }}
-        />
-      )}
-      
-      <Tab.Screen 
-        name="ProductionPlans" 
-        component={ProductionPlansScreen} 
+      <Tab.Screen
+        name="ProductionPlans"
+        component={ProductionPlansScreen}
         options={{
           tabBarLabel: 'Планы',
           tabBarIcon: ({ focused, color }) => (
@@ -116,10 +115,9 @@ function MainNavigator() {
           ),
         }}
       />
-      
-      <Tab.Screen 
-        name="TechCards" 
-        component={TechCardsScreen} 
+      <Tab.Screen
+        name="TechCards"
+        component={TechCardsScreen}
         options={{
           tabBarLabel: 'Техкарты',
           tabBarIcon: ({ focused, color }) => (
@@ -132,7 +130,6 @@ function MainNavigator() {
     </Tab.Navigator>
   );
 }
-
 
 function AppNavigator() {
   const { token, isLoading } = useAuth();
@@ -150,25 +147,21 @@ function AppNavigator() {
       <Stack.Navigator>
         {token ? (
           <>
-            <Stack.Screen 
-              name="Main" 
-              component={MainNavigator} 
+            <Stack.Screen
+              name="Main"
+              component={MainNavigator}
               options={{
                 title: 'Metallurg Mobile',
                 headerLeft: () => null,
                 headerRight: () => <LogoutButton />,
-                headerStyle: {
-                  backgroundColor: '#1f2937',
-                },
+                headerStyle: { backgroundColor: '#1f2937' },
                 headerTintColor: '#ffffff',
-                headerTitleStyle: {
-                  fontWeight: 'bold',
-                },
+                headerTitleStyle: { fontWeight: 'bold' },
               }}
             />
-            <Stack.Screen 
-              name="TaskReport" 
-              component={TaskReportScreen} 
+            <Stack.Screen
+              name="TaskReport"
+              component={TaskReportScreen}
               options={{
                 headerShown: false,
                 presentation: 'modal',
@@ -185,8 +178,10 @@ function AppNavigator() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppNavigator />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppNavigator />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
