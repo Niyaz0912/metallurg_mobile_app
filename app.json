@@ -6,14 +6,15 @@
     "orientation": "portrait",
     "icon": "./assets/icon_mettl.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/icon_mettl.png",
       "resizeMode": "contain",
       "backgroundColor": "#2c3e50"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "newArchEnabled": false
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +22,8 @@
         "backgroundColor": "#2c3e50"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.niyaz0912.metallurgmobile"
+      "package": "com.niyaz0912.metallurgmobile",
+      "newArchEnabled": false
     },
     "web": {
       "favicon": "./assets/icon_mettl.png"
@@ -36,4 +38,3 @@
     }
   }
 }
-
