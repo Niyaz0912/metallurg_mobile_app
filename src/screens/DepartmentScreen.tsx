@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
@@ -25,6 +25,18 @@ const departmentComponents: Record<string, React.FC> = {
 
 export default function DepartmentScreen() {
   const { user } = useAuth();
+
+  // Диагностическое логирование для отладки проблемы с департаментами
+  useEffect(() => {
+    console.log('DepartmentScreen - Department mapping:', {
+      userId: user?.id,
+      departmentId: user?.department?.id,
+      departmentName: user?.department?.name,
+      hasComponent: user?.department ? !!departmentComponents[user.department.id.toString()] : false,
+      availableComponents: Object.keys(departmentComponents),
+      userObject: user
+    });
+  }, [user]);
 
   if (!user) {
     return (
@@ -56,7 +68,15 @@ export default function DepartmentScreen() {
         {DepartmentComponent ? (
           <DepartmentComponent />
         ) : (
-          <Text>Департамент не найден или для него нет контента.</Text>
+          <View style={styles.centered}>
+            <Text style={styles.noDepartmentText}>Департамент не найден или для него нет контента.</Text>
+            {user.department && (
+              <Text style={styles.debugText}>
+                ID департамента: {user.department.id}
+                {'\n'}Доступные компоненты: {Object.keys(departmentComponents).join(', ')}
+              </Text>
+            )}
+          </View>
         )}
       </View>
     </View>
@@ -108,5 +128,16 @@ const styles = StyleSheet.create({
     color: colors.danger[600],
     fontWeight: typography.fontWeight.bold,
   },
+  noDepartmentText: {
+    fontSize: typography.fontSize.base,
+    color: colors.gray[700],
+    textAlign: 'center',
+    marginBottom: spacing[4],
+  },
+  debugText: {
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[500],
+    textAlign: 'center',
+    marginTop: spacing[2],
+  },
 });
-

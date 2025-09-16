@@ -1,8 +1,4 @@
-export interface LoginData {
-  username: string;
-  password: string;
-}
-
+// Описание ролей пользователей
 export enum UserRole {
   EMPLOYEE = 'employee',
   MASTER = 'master',
@@ -14,14 +10,31 @@ export enum UserRole {
 export interface Department {
   id: number;
   name: string;
-  // Добавьте другие нужные поля, если есть
+  description?: string;
 }
 
+// Описание пользователя
 export interface User {
   id: number;
   username: string;
   firstName: string;
   lastName: string;
   role: UserRole;
-  department?: Department;  // Добавлено поле департамента
+  position?: string;
+  phone?: string;
+  departmentId?: number;  // ✅ Поле для связи с департаментом
+  department?: Department | null;  // ✅ Полная информация о департаменте
 }
+
+// Данные для авторизации
+export interface LoginData {
+  username: string;
+  password: string;
+}
+
+// Ответ сервера при авторизации
+export interface LoginResponse {
+  token: string;
+  user: User;
+}
+
