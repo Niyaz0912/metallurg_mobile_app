@@ -122,7 +122,7 @@ function MainNavigator() {
           tabBarLabel: 'Техкарты',
           tabBarIcon: ({ focused, color }) => (
             <Text style={{ fontSize: 24, color }}>
-              {focused ? '🔧' : '⚙️'}
+              {focused ? '🔍' : '📏'}
             </Text>
           ),
         }}

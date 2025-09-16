@@ -1,143 +1,299 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import { colors } from '../theme/colors';
-import { spacing, componentSpacing } from '../theme/spacing';
-import { typography } from '../theme/typography';
-import { shadows } from '../theme/shadows';
+import { getDepartmentMockData, departmentNames } from '../data/mockData';
 
-// Импорт или определение компонентов для департаментов
-import AdministrativeMain from '../components/department-portals/AdministrativeMain';
-import CommercialMain from '../components/department-portals/CommercialMain';
-import FinancialMain from '../components/department-portals/FinancialMain';
-import HRMain from '../components/department-portals/HRMain';
-import ProductionMain from '../components/department-portals/ProductionMain';
-import QualityMain from '../components/department-portals/QualityMain';
-
-const departmentComponents: Record<string, React.FC> = {
-  '1': AdministrativeMain,
-  '2': HRMain,
-  '3': QualityMain,
-  '4': CommercialMain,
-  '5': ProductionMain,
-  '6': FinancialMain,
-};
-
-export default function DepartmentScreen() {
+const DepartmentScreen = () => {
   const { user } = useAuth();
 
-  // Диагностическое логирование для отладки проблемы с департаментами
-  useEffect(() => {
-    console.log('DepartmentScreen - Department mapping:', {
-      userId: user?.id,
-      departmentId: user?.department?.id,
-      departmentName: user?.department?.name,
-      hasComponent: user?.department ? !!departmentComponents[user.department.id.toString()] : false,
-      availableComponents: Object.keys(departmentComponents),
-      userObject: user
-    });
-  }, [user]);
+  // Получаем mock-данные для департамента пользователя
+  const departmentId = user?.departmentId || 1;
+  const mockData = getDepartmentMockData(departmentId);
+  const departmentName = departmentNames[departmentId];
 
   if (!user) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.notAuth}>Не авторизован</Text>
+      <View style={styles.container}>
+        <Text>Загрузка...</Text>
       </View>
     );
   }
 
-  const DepartmentComponent = user.department ? departmentComponents[user.department.id.toString()] : null;
-
   return (
-    <View style={styles.container}>
-      {/* Блок информации о сотруднике */}
-      <View style={styles.profileBlock}>
-        <Image
-          source={require('../../assets/icon.png')}
-          style={styles.avatar}
-        />
-        <Text style={styles.header}>
-          {user.firstName} {user.lastName}
-        </Text>
-        <Text style={styles.label}>Роль: <Text style={styles.value}>{user.role}</Text></Text>
-        <Text style={styles.label}>Департамент: <Text style={styles.value}>{user.department?.name || 'не указан'}</Text></Text>
+    <ScrollView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.departmentTitle}>🏢 {departmentName}</Text>
+        <Text style={styles.welcomeMessage}>{mockData.welcomeMessage}</Text>
       </View>
 
-      {/* Рендеринг контента департамента */}
-      <View style={styles.section}>
-        {DepartmentComponent ? (
-          <DepartmentComponent />
-        ) : (
-          <View style={styles.centered}>
-            <Text style={styles.noDepartmentText}>Департамент не найден или для него нет контента.</Text>
-            {user.department && (
-              <Text style={styles.debugText}>
-                ID департамента: {user.department.id}
-                {'\n'}Доступные компоненты: {Object.keys(departmentComponents).join(', ')}
-              </Text>
-            )}
-          </View>
-        )}
+      {/* Statistics Cards */}
+      <View style={styles.statsContainer}>
+        <Text style={styles.sectionTitle}>📊 Статистика</Text>
+        <View style={styles.statsGrid}>
+          {mockData.stats.map((stat, index) => (
+            <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }]}>
+              <Text style={styles.statIcon}>{stat.icon}</Text>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statTitle}>{stat.title}</Text>
+            </View>
+          ))}
+        </View>
       </View>
-    </View>
+
+      {/* Quick Actions */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>⚡ Быстрые действия</Text>
+        <View style={styles.actionsGrid}>
+          {mockData.quickActions.map((action, index) => (
+            <TouchableOpacity key={index} style={[styles.actionCard, { backgroundColor: action.color + '20' }]}>
+              <Text style={styles.actionIcon}>{action.icon}</Text>
+              <Text style={styles.actionTitle}>{action.title}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Recent Activity */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📋 Последняя активность</Text>
+        <View style={styles.activityContainer}>
+          {mockData.recentActivity.map((activity, index) => (
+            <View key={index} style={styles.activityItem}>
+              <Text style={styles.activityDot}>•</Text>
+              <Text style={styles.activityText}>{activity}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Charts (if available) */}
+      {mockData.chartData && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📈 Аналитика</Text>
+          <View style={styles.chartContainer}>
+            {mockData.chartData.map((item, index) => (
+              <View key={index} style={styles.chartItem}>
+                <Text style={styles.chartLabel}>{item.label}</Text>
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${item.value}%`, backgroundColor: item.color }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.chartValue}>{item.value}%</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Notifications (if available) */}
+      {mockData.notifications && mockData.notifications.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🔔 Уведомления</Text>
+          {mockData.notifications.map((notification, index) => (
+            <View key={index} style={[styles.notificationCard, styles[`notification_${notification.type}`]]}>
+              <Text style={styles.notificationTitle}>{notification.title}</Text>
+              <Text style={styles.notificationMessage}>{notification.message}</Text>
+              <Text style={styles.notificationTime}>{notification.time}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: componentSpacing.screenPadding,
-    backgroundColor: colors.background,
-  },
-  profileBlock: {
-    alignItems: 'center',
-    marginBottom: componentSpacing.sectionGap,
-  },
-  avatar: {
-    width: spacing[16],
-    height: spacing[16],
-    borderRadius: spacing[8],
-    marginBottom: spacing[6],
-    backgroundColor: colors.surface,
+    backgroundColor: '#f5f5f5',
   },
   header: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.gray[900],
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  label: {
-    fontSize: typography.fontSize.base,
-    color: colors.gray[600],
-    marginTop: spacing[2],
-    fontWeight: typography.fontWeight.medium,
+  departmentTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 5,
   },
-  value: {
-    color: colors.primary[600],
-    fontWeight: typography.fontWeight.normal,
+  welcomeMessage: {
+    fontSize: 16,
+    color: '#7f8c8d',
   },
   section: {
-    flex: 1,
+    backgroundColor: '#fff',
+    marginBottom: 10,
+    padding: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 15,
+  },
+  statsContainer: {
+    backgroundColor: '#fff',
+    padding: 20,
+    marginBottom: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderLeftWidth: 4,
     alignItems: 'center',
   },
-  notAuth: {
-    fontSize: typography.fontSize.lg,
-    color: colors.danger[600],
-    fontWeight: typography.fontWeight.bold,
+  statIcon: {
+    fontSize: 24,
+    marginBottom: 8,
   },
-  noDepartmentText: {
-    fontSize: typography.fontSize.base,
-    color: colors.gray[700],
-    textAlign: 'center',
-    marginBottom: spacing[4],
+  statValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 4,
   },
-  debugText: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray[500],
+  statTitle: {
+    fontSize: 12,
+    color: '#7f8c8d',
     textAlign: 'center',
-    marginTop: spacing[2],
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  actionCard: {
+    width: '48%',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+  },
+  actionIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  actionTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#2c3e50',
+  },
+  activityContainer: {
+    paddingLeft: 10,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  activityDot: {
+    fontSize: 16,
+    color: '#3498db',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  activityText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#2c3e50',
+    lineHeight: 20,
+  },
+  chartContainer: {
+    paddingVertical: 10,
+  },
+  chartItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  chartLabel: {
+    width: 100,
+    fontSize: 14,
+    color: '#2c3e50',
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#ecf0f1',
+    borderRadius: 4,
+    marginHorizontal: 10,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  chartValue: {
+    width: 40,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textAlign: 'right',
+  },
+  notificationCard: {
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+  },
+  notification_info: {
+    backgroundColor: '#e3f2fd',
+    borderLeftColor: '#2196f3',
+  },
+  notification_warning: {
+    backgroundColor: '#fff3e0',
+    borderLeftColor: '#ff9800',
+  },
+  notification_success: {
+    backgroundColor: '#e8f5e8',
+    borderLeftColor: '#4caf50',
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginBottom: 5,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#34495e',
+    marginBottom: 5,
+  },
+  notificationTime: {
+    fontSize: 12,
+    color: '#7f8c8d',
   },
 });
+
+export default DepartmentScreen;
